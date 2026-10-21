@@ -35,7 +35,7 @@ This option skips the notice; you still select photo and video settings in the c
 - Keep backups on your own computer. Do not delete them or upload them publicly.
 - **This is an experimental modification and can leave the camera unable to boot. A backup does not guarantee recovery.** A known installation interruption still affects previously unmodified cameras; users of these cameras are advised to wait.
 
-One camera completed an upgrade from the older FL2 / FL3 installation to the version that skips the notice. Its owner confirmed photo capture/playback, M1–M4 save/recall, and the expected startup-notice behavior. **The automatic upgrade completion flow added in 0.2.1 has only been tested offline and has not been retested end to end on a camera.** See [Validation](docs/VALIDATION.md) for the exact scope.
+One camera completed an upgrade from the older FL2 / FL3 installation to the version that skips the notice. Its owner confirmed photo capture/playback, M1–M4 save/recall, and the expected startup-notice behavior. **On 2026-10-21, a separate user reported successful 0.2.3 combined-profile first-installation retry and tool verification, including all nine runtime regions; manual functional results for that case have not yet been reported.** The automatic upgrade completion flow added in 0.2.1 remains tested offline only, without an end-to-end hardware retest. See [Validation](docs/VALIDATION.md) for the exact scope.
 
 ## Use a local AI assistant
 
@@ -214,7 +214,7 @@ Use the **original workspace**. The tool reviews the records, archives the previ
 
 4. After `RESULT: installed_pending_cold_start`, continue with [Cold start and verification](#cold-start-and-verification). A result ending in `_usb_unconfirmed` requires the [state guide](docs/STATE-MACHINE.md), without rerunning installation. If another error occurs, preserve the new records and inspect it before another attempt.
 
-**This retry path has only been tested offline, and does not guarantee that connection timeouts will be resolved.** See the [detailed retry guide](docs/INSTALL-RETRY.md) for all conditions.
+**On 2026-10-21, a user reported a successful hardware retry: the combined-profile installation completed, followed by verification of the programs, settings and nine runtime regions.** This is one user report supported by a terminal screenshot; photo capture/playback, preset recall and NTSC-notice behavior have not yet been reported for this case. It does not guarantee resolution of every connection timeout. See [Validation](docs/VALIDATION.md) and the [detailed retry guide](docs/INSTALL-RETRY.md).
 
 ## Upgrade an older installation
 
@@ -344,7 +344,7 @@ See [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) for complete attribution and lice
 - **0.2.2: support reviewed verification retries for older installations.** After a verification failure involving old runtime contents, review the original records first. If eligible, rerun verification without restoring or reinstalling. Another failure preserves the original failed phase and records the new error; failure markers are cleared only after successful verification.
 - **0.2.3: allow an explicit installation retry after service-entry timeout.** If the original traceback and journal prove that installation stopped while waiting for `0336`, preserve the backup and archive the state before attempting the connection once. Recheck the same camera, complete stock programs and target settings before writing. Failures after entering the installation body remain blocked; there is no automatic retry loop.
 
-The current release has passed **112 host-side tests and 8 upstream tests**, with previous failures also checked against saved records. These computer-side updates do not change the camera-side functionality; a working installation does not need reflashing. **This installation retry path has only been tested offline. The new automatic upgrade flow and the complete older-version verification retry flow have not been retested on hardware. First installation and restoration still have unverified paths.**
+The current release has passed **112 host-side tests and 8 upstream tests**, with previous failures also checked against saved records. These computer-side updates do not change the camera-side functionality; a working installation does not need reflashing. **The 0.2.3 combined-profile installation retry and tool verification now have one successful user hardware report. The new automatic upgrade flow and the complete older-version verification retry flow have not been retested on hardware. Default-profile first installation, restoration and other failure paths still have unverified parts.**
 
 ## Further documentation
 

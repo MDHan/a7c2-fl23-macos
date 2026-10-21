@@ -92,7 +92,7 @@ sudo ./a7c2-mac verify --workspace "$HOME/Pictures/A7C2-work" --cold-start-confi
 
 ## 出错时
 
-- 0.2.3 对首次安装进入服务模式前的精确 `0336` 超时增加 `install --retry-service-entry`，仅当用户明确选择重试时按 [INSTALL-RETRY.md](INSTALL-RETRY.md) 使用原目录。工具离线核对原失败堆栈及完整日志、归档原状态，连接后重新核对同一机身、完整原版程序和目标设置才写入；不手改阶段，不自动循环。其他 needs_review 仍按下条停止。本路径只经离线测试。
+- 0.2.3 对首次安装进入服务模式前的精确 `0336` 超时增加 `install --retry-service-entry`，仅当用户明确选择重试时按 [INSTALL-RETRY.md](INSTALL-RETRY.md) 使用原目录。工具离线核对原失败堆栈及完整日志、归档原状态，连接后重新核对同一机身、完整原版程序和目标设置才写入；不手改阶段，不自动循环。其他 needs_review 仍按下条停止。2026-10-21已有一例组合版安装重试及9区域工具验证成功的用户截图反馈；该例人工功能结果尚未反馈，详见 [VALIDATION.md](VALIDATION.md)。
 - `needs_review` 或未知USB操作结果：停止设备命令，保存阶段、日志和现有文件；不强行改状态、不补丁化绕过校验、不自动恢复或重新安装。
 - `*_usb_unconfirmed`：退出码2，必须参照 [STATE-MACHINE.md](STATE-MACHINE.md) 和 [故障表](ADVANCED.md#本次遇到的错误怎么处理) 解释准确状态。只有工具已确认主体完成的特定结果才能按文档继续，不能把任意超时解释为成功。
 - 保留用户已完成的工作。修复流程代码时，先做离线验证；不要把用户相机当作无限次试刷设备。

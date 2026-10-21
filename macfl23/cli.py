@@ -100,6 +100,9 @@ def parser():
         if name == 'restore':
             command.add_argument('--st-selected', action='store_true',
                                  help='冷启动前已将外观选为ST')
+        if name == 'install':
+            command.add_argument('--retry-service-entry', action='store_true',
+                                 help='上次安装仅进入服务模式超时：核对原记录后明确重试一次，不改阶段或覆盖备份')
     return result
 
 
@@ -108,6 +111,9 @@ def check_phase(args, job):
         return
     job.validate_candidates()
     phase = job.state['phase']
+    if args.action == 'install' and getattr(args, 'retry_service_entry', False):
+        from .service_retry import review_entry_failure
+        return review_entry_failure(job)
     if args.action == 'verify' and phase == 'needs_review':
         review = job.review_failed_verify_before_cold_start()
         job.audit('explicit_read_only_reverify_after_cold_start', review=review)
@@ -176,7 +182,7 @@ def run_camera(args):
         started = False
         original = transport.Session
         try:
-            check_phase(args, job)
+            entry_retry = check_phase(args, job)
             if args.action == 'install':
                 from . import ntsc
                 if ntsc.enabled(job.state):
@@ -186,6 +192,10 @@ def run_camera(args):
             wake = subprocess.Popen(['/usr/bin/caffeinate', '-i', '-s', '-w', str(os.getpid())])
             transport.Session = MacSession
             MacSession.audit = lambda row: job.audit('mac_usb_session_exit', result=row)
+            if args.action == 'install' and entry_retry is not None:
+                from .service_retry import archive_review
+                archive_review(job, entry_retry)
+                job._entry_retry_phase = entry_retry['failed_during']
             started = True
             if args.action == 'prepare':
                 if second and workspace.parent.stat().st_dev == second.parent.stat().st_dev:
@@ -197,7 +207,11 @@ def run_camera(args):
                     print('已选择仅 FL2/FL3；保留原有 NTSC 开机提示。', flush=True)
                     job.prepare(second)
             elif args.action == 'install':
-                job.install(args.battery_percent)
+                if entry_retry is not None:
+                    from .service_retry import install_after_entry_timeout
+                    install_after_entry_timeout(job, args.battery_percent)
+                else:
+                    job.install(args.battery_percent)
             elif args.action == 'upgrade':
                 print('实验性升级：按所选版本追加固定 AP 窗口，不重写拍摄设置；完成后必须冷启动验证。', flush=True)
                 job.upgrade(args.battery_percent)
@@ -208,7 +222,9 @@ def run_camera(args):
                          functional_test='manual_check_required', failed_action=None, failed_during=None, last_error=None)
             else:
                 job.restore(args.battery_percent)
-            job.save(job.state['phase'], normal_usb_returned=True, exit_warning=None)
+            cleared = dict(failed_action=None, failed_during=None, last_error=None) if (
+                args.action == 'install' and entry_retry is not None) else {}
+            job.save(job.state['phase'], normal_usb_returned=True, exit_warning=None, **cleared)
             print('RESULT: ' + job.state['phase'], flush=True)
             if args.action == 'prepare':
                 print('备份和机内预检查完成；尚未写入固件或保存拍摄设置。')
@@ -222,7 +238,9 @@ def run_camera(args):
             except Exception:
                 save_failure(job, args.action, exc)
                 raise
-            job.save(phase, normal_usb_returned=False, exit_warning=str(exc))
+            cleared = dict(failed_action=None, failed_during=None, last_error=None) if (
+                args.action == 'install' and entry_retry is not None) else {}
+            job.save(phase, normal_usb_returned=False, exit_warning=str(exc), **cleared)
             print('RESULT: ' + phase, flush=True)
             print('操作主体已验证，但普通USB返回未确认。没有自动重试写入。')
             if args.action in ('install', 'upgrade', 'restore'):
@@ -248,6 +266,8 @@ def run_camera(args):
 
 def save_failure(job, action, exc):
     phase = job.state.get('phase')
+    if action == 'install' and phase == 'needs_review' and '_entry_retry_phase' in job.__dict__:
+        phase = job._entry_retry_phase
     if action == 'verify' and phase == 'needs_review' and job.state.get('failed_action') == 'verify':
         phase = job.state.get('failed_during')
     job.save('needs_review', failed_during=phase, failed_action=action,

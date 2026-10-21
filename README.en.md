@@ -123,6 +123,8 @@ When `Password:` appears, enter your Mac administrator password only in Terminal
 
 Copy the whole block and enter the current battery percentage shown on the camera, using digits only:
 
+**Paste the complete block and press Return first. Enter the battery percentage only when prompted; do not append it to the code or parentheses. `$HOME` automatically expands to your own user directory and does not need replacing. Change the path only if you used a different workspace.**
+
 ```sh
 (
   printf 'Actual camera battery level (50–100, digits only): '
@@ -135,7 +137,42 @@ Keep the camera connected and powered on. Do not run another camera tool simulta
 
 If this completion result does not appear, or you see `STOPPED`, do not rerun installation. See [Status and errors](#status-and-errors).
 
-**If installation stopped before entering service mode with `Expected USB identity did not appear: 0336`:** version 0.2.3 adds an explicit [installation retry option](docs/INSTALL-RETRY.md). Preserve the original folder. After reviewing the complete records, the tool can attempt the connection once and recheck the camera and stock files before installation. Do not edit the phase or delete backups. Other installation failures are not eligible. This new path has only been tested offline.
+### Installation stops while waiting for `0336`
+
+```text
+STOPPED: Expected USB identity did not appear: 0336
+```
+
+This means the computer did not observe the camera's service-mode identity before the deadline. **If it happened before the installation body began, this attempt has not started installation writes.** The error number or a mass-storage screen alone does not prove retry eligibility; the tool checks the original traceback and complete records.
+
+Version 0.2.3 adds an explicit retry for this case instead of blocking every `needs_review` state:
+
+1. **Keep the entire original `A7C2-work` folder. Do not prepare again, delete backups, or edit state/error files.** For a Git checkout, run `git pull --ff-only` in the original tool folder. After a successful update, run `./setup.sh` and check `./a7c2-mac --version` for **0.2.3 or newer**. Stop if the update fails or conflicts; do not force an overwrite.
+2. The camera should show mass storage / image transfer (MSC), with no error. With no other camera operation running, inspect the saved state and the Mac's camera-disk detection:
+
+```sh
+./a7c2-mac status --workspace "$HOME/Pictures/A7C2-work"
+./a7c2-mac usb-status
+```
+
+The eligible state has `phase=needs_review`, `failed_action=install`, `failed_during=prepared` (or `prepared_usb_unconfirmed`), and exactly `UsbWaitTimeout: Expected USB identity did not appear: 0336` as `last_error`. If no camera disk is detected, inspect the connection first. An abnormal screen, an unresolved service session, or other failures are not reasons to retry directly.
+
+3. Confirm stock firmware 2.01 and an actual battery level of at least 50%. If you choose to retry, copy the full block and enter the current battery percentage when prompted:
+
+```sh
+(
+  printf 'Actual camera battery level (50–100, digits only): '
+  read -r A7C2_BATTERY
+  sudo ./a7c2-mac install --workspace "$HOME/Pictures/A7C2-work" \
+    --battery-percent "$A7C2_BATTERY" --retry-service-entry
+)
+```
+
+Use the **original workspace**. The tool reviews the records, archives the previous state, and attempts entry once. It checks the same camera, complete stock programs and original target settings before writing. Failures inside the installation body, unknown write outcomes, restore/upgrade failures and incomplete records remain blocked.
+
+4. After `RESULT: installed_pending_cold_start`, continue with [Cold start and verification](#cold-start-and-verification). A result ending in `_usb_unconfirmed` requires the [state guide](docs/STATE-MACHINE.md), without rerunning installation. If another error occurs, preserve the new records and inspect it before another attempt.
+
+**This retry path has only been tested offline, and does not guarantee that connection timeouts will be resolved.** See the [detailed retry guide](docs/INSTALL-RETRY.md) for all conditions.
 
 ## Upgrade an older installation
 
@@ -227,7 +264,7 @@ A restore function exists, but **actual restoration has not been tested**. It re
 | `RESULT: installed_pending_cold_start` | The installation or upgrade attempt completed; remove the battery as instructed, restart, and verify |
 | `RESULT: verified_after_cold_start` | Post-restart tool checks passed; also confirm actual photography and preset use |
 | Verification keeps failing after a missed battery-removal step | Update to 0.2.2 and review the existing records using the [retry guide](docs/VERIFY-RETRY.md); do not restore or reinstall |
-| Waiting for `0336` times out at installation entry | Update to 0.2.3 and follow the [installation retry guide](docs/INSTALL-RETRY.md), using the original folder |
+| Waiting for `0336` times out at installation entry | Update to 0.2.3 and follow the [steps on this page](#installation-stops-while-waiting-for-0336), using the original folder |
 | `STOPPED`, another error, or a result ending in `_usb_unconfirmed` | Preserve the current connection, folder, and records; follow the [state guide](docs/STATE-MACHINE.md) before retrying or removing the battery |
 | The folder already exists | Preserve it and inspect its records; do not delete it to start over |
 | No characters appear while entering the password | Normal; enter your Mac administrator password only in Terminal |

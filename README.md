@@ -123,6 +123,8 @@ sudo ./a7c2-mac prepare --workspace "$HOME/Pictures/A7C2-work" --disable-ntsc-wa
 
 复制整段，按提示输入相机屏幕显示的当前电量，只输入数字：
 
+**先粘贴完整命令并回车，等出现“相机当前实际电量”提示后，再输入电量。不要把电量接在代码或括号后面。`$HOME` 会自动使用你自己的用户目录，不需要替换；只有原来用了其他工作目录时才改路径。**
+
 ```sh
 (
   printf '相机当前实际电量（50–100，只输入数字）：'
@@ -135,7 +137,44 @@ sudo ./a7c2-mac prepare --workspace "$HOME/Pictures/A7C2-work" --disable-ntsc-wa
 
 没有看到这个完成结果，或出现 `STOPPED`，不要重跑安装，先看[状态与报错](#状态与报错)。
 
-**如果只是在开始时提示 `Expected USB identity did not appear: 0336`：** 0.2.3 提供[安装连接超时后的重试](docs/INSTALL-RETRY.md)。保留原文件夹，工具确认上次尚未进入安装主体后，可以明确重试一次；不用改状态文件，也不用删除备份重来。其他安装失败不适用。
+### 开始安装时提示 `0336` 超时，怎么办
+
+如果看到：
+
+```text
+STOPPED: Expected USB identity did not appear: 0336
+```
+
+表示电脑在规定时间内没有等到相机切换到服务模式。**这类错误如果发生在进入安装主体之前，就还没有开始本次安装写入。** 不能只凭 `0336` 或相机显示“海量存储模式”判断可以重试，工具会核对原始报错和完整记录。
+
+0.2.3 起允许符合条件的用户明确重试，不会再仅因 `needs_review` 就一律拦住。按以下顺序操作：
+
+1. **保留原来的整个 `A7C2-work`，不用重新备份或重新 prepare，不删除或编辑 `state.json`、报错文件。** 对用 Git 下载的工具，在原工具文件夹运行 `git pull --ff-only`；更新成功后运行 `./setup.sh`，再用 `./a7c2-mac --version` 确认是 **0.2.3 或更新版本**。更新有冲突或失败时先停下，不强制覆盖。
+2. 相机应显示海量存储/影像传输（MSC），没有错误提示。没有其他相机工具运行时，查看记录和电脑识别情况：
+
+```sh
+./a7c2-mac status --workspace "$HOME/Pictures/A7C2-work"
+./a7c2-mac usb-status
+```
+
+适用记录是：`phase` 为 `needs_review`、`failed_action` 为 `install`、`failed_during` 为 `prepared`（或 `prepared_usb_unconfirmed`），`last_error` 恰为 `UsbWaitTimeout: Expected USB identity did not appear: 0336`。如果没有识别到相机磁盘，先排查连接；屏幕异常、服务模式未退出或其他失败不直接重试。
+
+3. 确认原版2.01、当前电量至少50%，决定重试后，复制整段，等待提示再输入当前电量：
+
+```sh
+(
+  printf '相机当前实际电量（50–100，只输入数字）：'
+  read -r A7C2_BATTERY
+  sudo ./a7c2-mac install --workspace "$HOME/Pictures/A7C2-work" \
+    --battery-percent "$A7C2_BATTERY" --retry-service-entry
+)
+```
+
+仍使用**原来的工作目录**。工具会先检查失败记录并另存原状态，再尝试连接一次；核对同一机身、完整原版程序和目标设置后才开始安装。已经进入安装主体、写入结果不明、恢复或升级失败，以及记录不完整的情况仍会停止。
+
+4. 看到 `RESULT: installed_pending_cold_start` 后，继续[冷启动与验证](#冷启动与验证)。如果结果带 `_usb_unconfirmed`，按[状态说明](docs/STATE-MACHINE.md)核对，不再重跑安装。再次报错时保留新记录，先核对原因，不连续尝试。
+
+**新重试路径只通过了电脑端测试，尚未实机验证，也不保证能解决连接超时。** 完整条件见[安装重试说明](docs/INSTALL-RETRY.md)。
 
 ## 旧版升级
 
@@ -227,7 +266,7 @@ sudo ./a7c2-mac verify --workspace "$HOME/Pictures/A7C2-upgrade" --cold-start-co
 | `RESULT: installed_pending_cold_start` | 安装或升级这一轮完成，接下来取电池重启并验证 |
 | `RESULT: verified_after_cold_start` | 重新开机后的工具检查通过，再确认实际拍摄和预设使用 |
 | 忘记取电池，后来一直验证失败 | 更新到0.2.2，按[重新验证说明](docs/VERIFY-RETRY.md)先检查记录，不恢复、不重装 |
-| 开始安装时等待 `0336` 超时 | 更新到0.2.3，按[安装重试说明](docs/INSTALL-RETRY.md)使用原目录；先核对记录，不手改阶段 |
+| 开始安装时等待 `0336` 超时 | 更新到0.2.3，按[本页重试步骤](#开始安装时提示-0336-超时怎么办)使用原目录；不要改阶段或删备份 |
 | 出现 `STOPPED`、其他报错，或结果带 `_usb_unconfirmed` | 先保留当前连接、文件夹和记录，按[详细说明](docs/STATE-MACHINE.md)核对，不直接重跑或取电池 |
 | 文件夹已经存在 | 保留原文件，查看旧记录，不删除重来 |
 | 输入密码时什么也不显示 | 正常；只在终端输入 Mac 管理员密码 |

@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | [English](README.en.md)
 
-Add the FL2 / FL3 Creative Looks to a **Sony A7C II (ILCE-7CM2) running firmware 2.01** using a Mac, with an option to skip the NTSC startup notice. Current tool version: **0.2.2**.
+Add the FL2 / FL3 Creative Looks to a **Sony A7C II (ILCE-7CM2) running firmware 2.01** using a Mac, with an option to skip the NTSC startup notice. Current tool version: **0.2.3**.
 
 **The FL2 / FL3 tone curves, chroma data, and color matrices come from Sony α1 II (Alpha 1 II, ILCE-1M2) firmware 4.00.** The upstream project ported and adapted them to the A7C II 2.01; this project adds macOS support and related fixes. Color matching against a physical α1 II has not been validated. See [Acknowledgements](#acknowledgements) and [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) for sources and attribution.
 
@@ -135,6 +135,8 @@ Keep the camera connected and powered on. Do not run another camera tool simulta
 
 If this completion result does not appear, or you see `STOPPED`, do not rerun installation. See [Status and errors](#status-and-errors).
 
+**If installation stopped before entering service mode with `Expected USB identity did not appear: 0336`:** version 0.2.3 adds an explicit [installation retry option](docs/INSTALL-RETRY.md). Preserve the original folder. After reviewing the complete records, the tool can attempt the connection once and recheck the camera and stock files before installation. Do not edit the phase or delete backups. Other installation failures are not eligible. This new path has only been tested offline.
+
 ## Upgrade an older installation
 
 This is for cameras **already running the older FL2 / FL3 version, with the complete original backup and installation folder preserved**. The original installation must have completed and passed verification. This flow does not currently accept the older notice-skipping version, other modifications, missing backups, or an unfinished previous operation.
@@ -225,6 +227,7 @@ A restore function exists, but **actual restoration has not been tested**. It re
 | `RESULT: installed_pending_cold_start` | The installation or upgrade attempt completed; remove the battery as instructed, restart, and verify |
 | `RESULT: verified_after_cold_start` | Post-restart tool checks passed; also confirm actual photography and preset use |
 | Verification keeps failing after a missed battery-removal step | Update to 0.2.2 and review the existing records using the [retry guide](docs/VERIFY-RETRY.md); do not restore or reinstall |
+| Waiting for `0336` times out at installation entry | Update to 0.2.3 and follow the [installation retry guide](docs/INSTALL-RETRY.md), using the original folder |
 | `STOPPED`, another error, or a result ending in `_usb_unconfirmed` | Preserve the current connection, folder, and records; follow the [state guide](docs/STATE-MACHINE.md) before retrying or removing the battery |
 | The folder already exists | Preserve it and inspect its records; do not delete it to start over |
 | No characters appear while entering the password | Normal; enter your Mac administrator password only in Terminal |
@@ -260,8 +263,9 @@ See [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) for complete attribution and lice
 - **Two versions.** Choose FL2 / FL3 or FL2 / FL3 + skip NTSC notice. Both include the card-preset fix.
 - **0.2.1: address the observed intermediate upgrade stop.** A value inside the camera that increased with elapsed time previously caused the tool to stop at its settings-preservation check. The upgrade now continues only if this value follows the observed pattern, saved settings remain exactly unchanged, and the other checks pass. Other anomalies still stop the operation. Previously interrupted folders do not automatically resume writes.
 - **0.2.2: support reviewed verification retries for older installations.** After a verification failure involving old runtime contents, review the original records first. If eligible, rerun verification without restoring or reinstalling. Another failure preserves the original failed phase and records the new error; failure markers are cleared only after successful verification.
+- **0.2.3: allow an explicit installation retry after service-entry timeout.** If the original traceback and journal prove that installation stopped while waiting for `0336`, preserve the backup and archive the state before attempting the connection once. Recheck the same camera, complete stock programs and target settings before writing. Failures after entering the installation body remain blocked; there is no automatic retry loop.
 
-The current release has passed **104 host-side tests and 8 upstream tests**, with previous failures also checked against saved records. These computer-side updates do not change the camera-side functionality; a working installation does not need reflashing. **The new automatic upgrade flow and the complete older-version verification retry flow have not been retested on hardware. First installation and restoration still have unverified paths.**
+The current release has passed **112 host-side tests and 8 upstream tests**, with previous failures also checked against saved records. These computer-side updates do not change the camera-side functionality; a working installation does not need reflashing. **This installation retry path has only been tested offline. The new automatic upgrade flow and the complete older-version verification retry flow have not been retested on hardware. First installation and restoration still have unverified paths.**
 
 ## Further documentation
 
@@ -272,6 +276,7 @@ The detailed documents below are currently in Chinese.
 | [Validation](docs/VALIDATION.md) | What has actually been tested and what remains untested |
 | [Upgrade guide](docs/UPGRADE.md) | Upgrade requirements and procedure |
 | [Verification retry](docs/VERIFY-RETRY.md) | Reviewing old or new installation records after a verification failure |
+| [Installation entry retry](docs/INSTALL-RETRY.md) | Explicitly retrying only a proven service-entry timeout before installation begins |
 | [Interrupted upgrade handling](docs/UPGRADE-FINISH.md) | Reviewing an already interrupted upgrade while preserving its records |
 | [Local AI guide](docs/AI-INSTALL.md) | Instructions for a local assistant |
 | [Recovery and troubleshooting](docs/ADVANCED.md) | Connection, restoration, and common issues |

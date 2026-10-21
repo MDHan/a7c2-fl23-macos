@@ -1,6 +1,10 @@
 # Mac 给 A7C II 安装 FL2 / FL3
 
+[简体中文](README.md) | [English](README.en.md)
+
 用 Mac 给 **索尼 A7C II（ILCE-7CM2）、2.01 版系统**加入 FL2 / FL3 两种创意外观，可选择同时跳过开机时的 NTSC 提示。当前工具版本：**0.2.2**。
+
+**FL2 / FL3 的色调曲线、色度数据和色彩矩阵来自索尼 α1 II（Alpha 1 II，ILCE-1M2）的 4.00 版固件**，由上游项目移植并适配到 A7C II 2.01，本项目在此基础上提供 Mac 适配及相关修复。与原生 α1 II 的跨机身实拍色彩一致性尚未验证。完整来源与贡献归属见[致谢](#致谢)及 [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md)。
 
 ## 可以做什么
 

@@ -11,7 +11,6 @@ Add the FL2 / FL3 Creative Looks to a **Sony A7C II (ILCE-7CM2) running firmware
 | Feature | Description |
 | --- | --- |
 | Add FL2 / FL3 | Select the two Creative Looks in the camera for still photography |
-| Fix memory-card preset recall errors | Address the “File Error” that can occur when recalling FL2 / FL3 from M1–M4 on a memory card |
 | Optionally skip the startup notice | Choose a version that skips the NTSC notice at startup |
 | Back up, install, and upgrade | Keep the camera's own original backup; upgrade an existing older FL2 / FL3 installation |
 | Verify after installation | Check the installation and whether the changes are active after restarting |

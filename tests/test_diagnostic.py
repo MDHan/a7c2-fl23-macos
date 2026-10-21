@@ -122,6 +122,7 @@ class DiagnosticTests(unittest.TestCase):
                                 'identity': {'model': d.core.MODEL, 'serial_sha256': 'a' * 64}}
                 factory = MagicMock()
                 connection = factory.return_value
+                connection.__enter__.return_value.identity = source.state['identity']
                 def exit_session(*args):
                     factory.audit({'service_exit_request': 'sent', 'normal_usb_returned': outcome != 'timeout',
                                    'errors': ['normal USB timeout'] if outcome == 'timeout' else []})
@@ -145,6 +146,13 @@ class DiagnosticTests(unittest.TestCase):
                 self.assertEqual(summary['status'], {'success': 'diagnosed', 'timeout': 'diagnosed_usb_unconfirmed',
                                                      'failure': 'incomplete'}[outcome])
                 self.assertTrue(summary['source_state_unchanged'])
+                directory = next(root.glob('diagnostic-*'))
+                self.assertEqual((directory / 'source-state.private.json').read_bytes(), original)
+                journal = json.loads((directory / 'diagnostic.private.json').read_text())['journal']
+                self.assertEqual(journal[0]['step'], 'diagnostic_source_bound')
+                self.assertEqual(journal[0]['source_state_sha256'], d.core.sha(original))
+                self.assertEqual(journal[1]['identity'], source.state['identity'])
+                self.assertNotIn('serial_sha256', json.dumps(summary))
                 source.save.assert_not_called()
                 source.audit.assert_not_called()
 

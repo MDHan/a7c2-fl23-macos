@@ -77,7 +77,24 @@ class FinishTests(unittest.TestCase):
                 marker.unlink()
                 source.state['journal'][-1]['result']['normal_usb_returned'] = False
                 with self.assertRaises(ValueError): f.review_history(source)
-                source.state['journal'][-1]['result']['normal_usb_returned'] = True
+                source.state['journal'][-1]['result'] = {
+                    'service_exit_request': 'sent',
+                    'normal_usb_returned': None,
+                    'errors': ['normal USB return: Expected USB identity did not appear: 0e8a'],
+                }
+                with self.assertRaises(ValueError): f.review_history(source)
+                diag = root / 'diagnostic-sample'
+                diag.mkdir()
+                (diag / 'diagnostic-summary.json').write_text(json.dumps({
+                    'status': 'diagnosed',
+                    'source_state_unchanged': True,
+                    'normal_usb_returned': True,
+                    'programs_match_final': True,
+                    'runtime_disk_matches_candidate': True,
+                }))
+                # A shareable summary alone is not recovery evidence.
+                with self.assertRaises(ValueError): f.review_history(source)
+                source.state['journal'][-1]['result'] = {'service_exit_request': 'sent', 'normal_usb_returned': True, 'errors': []}
                 source.state['features'] = ['fl23', 'no_ntsc_notice']
                 with self.assertRaises(ValueError): f.review_history(source)
                 source.state.pop('features')

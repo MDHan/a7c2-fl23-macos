@@ -66,6 +66,71 @@ def evidence_file(root, suffix, start, end):
     return paths[0]
 
 
+def review_diagnostic_recovery(source, failed_at):
+    """Use the latest ordered session, never an arbitrary successful summary."""
+    sessions = []
+    try:
+        for directory in source.root.glob('diagnostic-*'):
+            # Missing/broken logs cannot be ordered safely; do not skip them.
+            journal = json.loads((directory / 'diagnostic.private.json').read_text())['journal']
+            require(isinstance(journal, list) and bool(journal), '诊断日志为空')
+            times = [datetime.fromisoformat(row['time']) for row in journal]
+            require(all(a <= b for a, b in zip(times, times[1:])), '诊断日志时间倒退')
+            sessions.append((times[0], times[-1], directory, journal))
+        require(bool(sessions), '缺少后续诊断证据')
+        sessions.sort(key=lambda item: item[0])
+        require(all(a[1] < b[0] for a, b in zip(sessions, sessions[1:])), '诊断会话时间重叠或不唯一')
+        start, end, directory, rows = sessions[-1]
+        require(start > failed_at, '诊断早于本次失败安装')
+        require([r['step'] for r in rows] == [
+            'diagnostic_source_bound', 'diagnostic_camera_verified',
+            'host_full_file_readback_verified', 'native_about_to_run',
+            'native_verified', 'mac_usb_session_exit'], '最近诊断不完整或缺少来源绑定')
+        snapshot = directory / 'source-state.private.json'
+        original_state = source.state_path.read_bytes()
+        require(snapshot.read_bytes() == original_state
+                and rows[0].get('source_state_sha256') == core.sha(original_state)
+                and rows[0].get('identity') == rows[1].get('identity') == source.state['identity'],
+                '诊断不属于当前失败状态或机身')
+        require(rows[-1].get('result') == {
+            'service_exit_request': 'sent', 'normal_usb_returned': True, 'errors': []},
+            '最近诊断未正常退出并返回 MSC')
+        summary_file = directory / 'diagnostic-summary.json'
+        summary = json.loads(summary_file.read_text())
+        require(isinstance(summary, dict) and summary.get('format') == 1
+                and summary.get('purpose') == 'interrupted_install_diagnosis'
+                and summary.get('status') == 'diagnosed'
+                and summary.get('source_phase') == 'needs_review'
+                and summary.get('firmware_or_settings_or_wbi_writes') is False
+                and all(summary.get(k) is True for k in (
+                    'body_completed', 'source_state_unchanged', 'normal_usb_returned',
+                    'programs_match_final', 'runtime_disk_matches_candidate')),
+                '最近诊断摘要未确认完整采集和正常返回')
+        require(rows[2].get('hashes') == core.FINAL and all(
+            (r.get('module'), r.get('mode')) == ('runtime', None) for r in rows[3:5]),
+            '诊断不是完整程序读回和只读运行检查')
+        evidence = [snapshot, summary_file, directory / 'diagnostic.private.json']
+        for name, expected in zip(core.PROGRAMS, core.FINAL):
+            paths = list((directory / 'readback').glob('*-' + name))
+            require(len(paths) == 1 and core.sha(paths[0].read_bytes()) == expected,
+                    '诊断完整程序读回证据缺失、不唯一或不匹配')
+            evidence.extend(paths)
+        runtime_path = evidence_file(directory, 'runtime.bin', datetime.fromisoformat(rows[3]['time']), end)
+        runtime = core.parse_native('runtime', runtime_path.read_bytes())
+        require(runtime == rows[4].get('result'), '诊断运行报告与日志不符')
+        spans = runtime['spans']
+        require(len(spans) == len(SPANS) and {r['offset']: r['length'] for r in spans} == SPANS,
+                '诊断运行区域清单不符')
+        candidate = (source.root / 'candidate/appFw.so').read_bytes()
+        require(all(r['disk'] == candidate[r['offset']:r['offset'] + r['length']].hex() for r in spans),
+                '诊断磁盘窗口不匹配')
+        evidence.append(runtime_path)
+        return {'directory': directory.name, 'evidence_hashes': {
+            p.relative_to(directory).as_posix(): core.sha(p.read_bytes()) for p in evidence}}
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise ValueError('后续诊断证据不足；保留原记录，不能据摘要放行收尾') from exc
+
+
 def review_history(source):
     source.validate_candidates()
     from . import integrated
@@ -92,14 +157,19 @@ def review_history(source):
             '原安装器完成记录不唯一')
     require(any(r.get('step') == 'host_full_file_readback_verified' and r.get('hashes') == core.FINAL
                 for r in rows), '没有完整程序读回通过的历史证据')
-    require(rows[-1].get('step') == 'mac_usb_session_exit'
-            and rows[-1].get('result', {}).get('service_exit_request') == 'sent'
-            and rows[-1]['result'].get('normal_usb_returned') is True
-            and rows[-1]['result'].get('errors') == [], '原失败会话未正常返回 MSC')
-    require(not any(r.get('step') in ('settings_storage_verified', 'temporary_cleanup_pending') for r in rows),
-            '原失败记录与本专项不符')
+    exit_res = rows[-1].get('result', {}) if rows[-1].get('step') == 'mac_usb_session_exit' else {}
     start_time = datetime.fromisoformat(rows[0]['time'])
     end_time = datetime.fromisoformat(rows[-1]['time'])
+    direct_return = (exit_res.get('service_exit_request') == 'sent'
+                     and exit_res.get('normal_usb_returned') is True
+                     and exit_res.get('errors') == [])
+    timed_out = (exit_res.get('service_exit_request') == 'sent'
+                 and exit_res.get('normal_usb_returned') is None
+                 and exit_res.get('errors') == ['normal USB return: Expected USB identity did not appear: 0e8a'])
+    require(direct_return or timed_out, '原失败会话不是正常返回或单一 MSC 等待超时')
+    recovery = review_diagnostic_recovery(source, end_time) if timed_out else None
+    require(not any(r.get('step') in ('settings_storage_verified', 'temporary_cleanup_pending') for r in rows),
+            '原失败记录与本专项不符')
     installer = evidence_file(source.root, 'installer.bin', start_time, end_time)
     parsed = core.parse_native('installer', installer.read_bytes(), 1)
     require(parsed == native[0].get('result') and parsed.get('window_writes') == 40,
@@ -111,8 +181,11 @@ def review_history(source):
     expected = {(1, k): v for k, v in merged.items()}
     expected.update({(0, k): bytes([10 + i]) for i, k in enumerate(core.AP_KEYS)})
     review_records(*records, expected)
-    return {'scoped_review_key': '0x02770015', 'observed_delta': 60,
-            'evidence_hashes': {p.name: core.sha(p.read_bytes()) for p in [installer, *paths]}}
+    reviewed = {'scoped_review_key': '0x02770015', 'observed_delta': 60,
+                'evidence_hashes': {p.name: core.sha(p.read_bytes()) for p in [installer, *paths]}}
+    if recovery is not None:
+        reviewed['diagnostic_recovery'] = recovery
+    return reviewed
 
 
 class FinishSession(DiagnosticSession):

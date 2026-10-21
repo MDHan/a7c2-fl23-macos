@@ -166,6 +166,10 @@ def run_diagnosis(workspace):
         try:
             directory = Path(tempfile.mkdtemp(prefix='diagnostic-', dir=workspace))
             job = DiagnosticJob(directory, source)
+            # Bind private evidence to the exact failed installation before USB.
+            write_new(job.root / 'source-state.private.json', saved_state)
+            job.audit('diagnostic_source_bound', source_state_sha256=core.sha(saved_state),
+                      identity=identity)
             def audit(row):
                 exit_report.update(row)
                 job.audit('mac_usb_session_exit', result=row)
@@ -174,6 +178,7 @@ def run_diagnosis(workspace):
             print('实验性专项诊断：尚未真机验证；将进入服务模式并运行临时 runtime 模块。', flush=True)
             print('不写固件、保存参数或 WBI；诊断不等于安装完成，不自动续写。', flush=True)
             with MacSession(identity) as session:
+                job.audit('diagnostic_camera_verified', identity=session.identity)
                 job.inspect(DiagnosticSession(session))
             status, result = 'diagnosed', 0
         except NormalReturnTimeout:

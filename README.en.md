@@ -79,6 +79,48 @@ cd a7c2-fl23-macos
 
 No camera connection or battery-level input is needed for setup. If you already have a checkout, preserve local files and update the tools without deleting old backups. Run the remaining commands from the `a7c2-fl23-macos` directory.
 
+## Updating the tools
+
+**This updates the Mac-side tools; it does not flash the camera or create another camera backup.** Wait until no installation or other tool operation is running. Preserve the entire original workspace, such as `Pictures/A7C2-work`. Do not use `sudo` or enter a camera battery level for these update commands.
+
+### If you cloned with Git
+
+1. Return to the Terminal window where you ran `./a7c2-mac`. If the prompt already shows `a7c2-fl23-macos %`, you are in the right folder and **do not need another `cd`**. In a new Terminal window, enter the original tool folder. If it was downloaded into your home directory:
+
+```sh
+cd "$HOME/a7c2-fl23-macos"
+```
+
+If this folder cannot be found, locate the original tool folder in Finder, type `cd` followed by a space in Terminal, drag the folder into Terminal, and press Return. The backup workspace `A7C2-work` is a different folder.
+
+2. From the tool folder, copy and run the complete block:
+
+```sh
+git pull --ff-only &&
+./setup.sh &&
+./a7c2-mac --version
+```
+
+This updates the code, installs its environment, then displays the version. A failed step prevents later steps from running. **The `0336` retry feature requires 0.2.3 or newer.** Preserve any conflict or “not a git repository” error. If Git says it is up to date but the version is older, stop rather than deleting files or forcing an overwrite.
+
+### If you downloaded a ZIP or cannot update the old folder
+
+Preserve the old tools and workspace. Download fresh tools into a separate folder in your home directory:
+
+```sh
+(
+  cd "$HOME" &&
+  git clone https://github.com/MDHan/a7c2-fl23-macos.git a7c2-fl23-macos-latest &&
+  cd a7c2-fl23-macos-latest &&
+  ./setup.sh &&
+  ./a7c2-mac --version
+)
+```
+
+If `a7c2-fl23-macos-latest` already exists, this stops without overwriting it. After a successful download, run `cd "$HOME/a7c2-fl23-macos-latest"` in Terminal and use the tools there. Keep `--workspace` pointing to the **original workspace**, without preparing a new empty one.
+
+Updating the tools does not complete an installation. For a `0336` failure, continue with the [retry steps below](#installation-stops-while-waiting-for-0336).
+
 ## Connection and cold start
 
 **Connect the camera:** use a USB data cable directly to the Mac. Select **option 2, “Image Transfer (MSC)”**, on the camera. Do not select streaming or PC Remote. Select MSC again if prompted later.
@@ -147,7 +189,7 @@ This means the computer did not observe the camera's service-mode identity befor
 
 Version 0.2.3 adds an explicit retry for this case instead of blocking every `needs_review` state:
 
-1. **Keep the entire original `A7C2-work` folder. Do not prepare again, delete backups, or edit state/error files.** For a Git checkout, run `git pull --ff-only` in the original tool folder. After a successful update, run `./setup.sh` and check `./a7c2-mac --version` for **0.2.3 or newer**. Stop if the update fails or conflicts; do not force an overwrite.
+1. **Keep the entire original `A7C2-work` folder. Do not prepare again, delete backups, or edit state/error files.** Follow the complete [tool update steps](#updating-the-tools) first and confirm **0.2.3 or newer** before continuing.
 2. The camera should show mass storage / image transfer (MSC), with no error. With no other camera operation running, inspect the saved state and the Mac's camera-disk detection:
 
 ```sh
